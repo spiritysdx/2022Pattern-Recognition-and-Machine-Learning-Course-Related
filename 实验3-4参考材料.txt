@@ -1,0 +1,120 @@
+#coding:utf-8
+
+from time import time
+import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d.axes3d import Axes3D
+from sklearn import (datasets, decomposition,manifold)
+from pylab import mpl
+
+from sklearn.model_selection import cross_val_score
+from sklearn.neighbors import KNeighborsClassifier as KNN
+
+
+mpl.rcParams['font.family'] = 'SimHei'     ### # matplotlib其实是不支持显示中文的 显示中文需要一行代码设置字体
+plt.rcParams['axes.unicode_minus'] = False
+
+
+#加载数据，显示数据
+digits = datasets.load_digits()
+X = digits.data
+y = digits.target
+print (X.shape,y.shape)
+
+n_row = 20
+img = np.zeros((15 * n_row, 15 * n_row))
+for i in range(n_row):
+    ix = 15 * i + 1
+    for j in range(n_row):
+        iy = 15 * j + 1
+        img[ix:ix + 8, iy:iy + 8] = X[i * n_row + j].reshape((8, 8))
+plt.imshow(img, cmap=plt.cm.binary)
+plt.title('部分样本展示')
+
+
+#%%
+# 将降维后的数据可视化,2维
+def plot_embedding_2d(X, title=None):
+    #坐标缩放到[0,1]区间
+    x_min, x_max = np.min(X,axis=0), np.max(X,axis=0)
+    X = (X - x_min) / (x_max - x_min)
+
+    #降维后的坐标为（X[i, 0], X[i, 1]），在该位置画出对应的digits
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+    for i in range(X.shape[0]):
+        ax.text(X[i, 0], X[i, 1],str(digits.target[i]),
+                 color=plt.cm.Set1(y[i] / 10.),
+                 fontdict={'weight': 'bold', 'size': 9})
+
+    if title is not None:
+        plt.title(title)
+
+#%%
+#将降维后的数据可视化,3维
+def plot_embedding_3d(X, title=None):
+    #坐标缩放到[0,1]区间
+    x_min, x_max = np.min(X,axis=0), np.max(X,axis=0)
+    X = (X - x_min) / (x_max - x_min)
+
+    #降维后的坐标为（X[i, 0], X[i, 1],X[i,2]），在该位置画出对应的digits
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1, projection='3d')
+    for i in range(X.shape[0]):
+        ax.text(X[i, 0], X[i, 1], X[i,2],str(digits.target[i]),
+                 color=plt.cm.Set1(y[i] / 10.),
+                 fontdict={'weight': 'bold', 'size': 9})
+
+    if title is not None:
+        plt.title(title)
+    plt.show()
+
+
+
+# #PCA
+print(" PCA降维")
+t0 = time()
+X_pca =decomposition.PCA(n_components=3).fit_transform(X)
+plot_embedding_2d(X_pca[:,0:2],"PCA 2D")
+plot_embedding_3d(X_pca,"PCA 3D (time %.2fs)" %(time() - t0))
+plt.show()
+#
+#
+#
+
+
+# #%%
+#Isomap
+print("Isomap 降维")
+t0 = time()
+X_iso = manifold.Isomap(n_neighbors=10,n_components=2).fit_transform(X)
+print("Done.")
+plot_embedding_2d(X_iso,"Isomap (time %.2fs)" %(time() - t0))
+plt.show()
+#
+#
+#standard LLE
+print("LLE 降维")
+clf = manifold.LocallyLinearEmbedding(n_neighbors=10, n_components=2,method='standard')
+t0 = time()
+X_lle = clf.fit_transform(X)
+plot_embedding_2d(X_lle,"Locally Linear Embedding (time %.2fs)" %(time() - t0))
+plt.show()
+
+
+# t-SNE
+print(" t-SNE 降维")
+tsne = manifold.TSNE(n_components=3, init='pca', random_state=0)
+t0 = time()
+X_tsne = tsne.fit_transform(X)
+print (X_tsne.shape)
+plot_embedding_2d(X_tsne[:,0:2],"t-SNE 2D")
+plot_embedding_3d(X_tsne,"t-SNE 3D (time %.2fs)" %(time() - t0))
+plt.show()
+
+
+
+
+print(cross_val_score(KNN(),X_pca,y,cv=5).mean())
+
+print(cross_val_score(KNN(),X_tsne,y,cv=5).mean())
